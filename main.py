@@ -1,4 +1,8 @@
-
+import concurrent.futures
+import platform
+import subprocess
+import threading
+import time
 def verify_ipAddress(ipAddress: str):
 
         ipOctets = ipAddress.split('.')
@@ -78,5 +82,42 @@ def check_host_range(cidr: int, ipAddress: str):
 
         return lowerBoundIP, upperBoundIP
 
-print(check_host_range(16, "192.168.14.21"))
+def ping(ip: str):
+
+        if platform.system().lower() == "windows":
+                param = '-n'
+        else:
+                param = '-c'
+        command = ["ping", param, "1", ip]
+        result = subprocess.run(args = command, stdout = subprocess.PIPE, stderr= subprocess.PIPE, text = True)
+
+        if result.returncode == 0 and "Destination host unreachable" in result.stdout:
+
+                return False # windows will return code 0 even when host is unreachable
+        elif result.returncode == 0:
+                return True
+        else:
+                return False
+
+def paralell_ping(ipList):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
+                results = executor.map(ping, ipList)
+
+        return results
+
+
+print(check_host_range(24, "192.168.14.21"))
+ip_addresses = [f"192.168.1.{i}" for i in range(256)]
+
+
+results = paralell_ping(ip_addresses)
+initial_time = time.time()
+
+
+for ip, result in zip(ip_addresses, results):
+    status = "up" if result else "down"
+    print(f"IP: {ip}, Status: {status}")
+
+
+
 
